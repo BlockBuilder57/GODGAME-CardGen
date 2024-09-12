@@ -1,0 +1,85 @@
+:root {
+	--card-width: 506px;
+	--card-height: 702px;
+
+	--card-text-border-size: 1.25px;
+	--card-text-border-blur: 0.6px;
+	--card-text-border-color: black;
+}
+
+p {
+	margin: 0;
+}
+
+#container {
+	display: flex;
+	flex-direction: row;
+}
+
+#infoEditable {
+	display: flex;
+	flex-direction: column;
+}
+
+.cardSized {
+	width: var(--card-width) !important;
+	height: var(--card-height) !important;
+}
+
+#canvas {
+	margin-right: 10px;
+}
+
+.textOutline {
+	text-shadow: calc(var(--card-text-border-size)) 0 var(--card-text-border-blur) var(--card-text-border-color), calc(var(--card-text-border-size) * -1) 0 var(--card-text-border-blur) var(--card-text-border-color), 0 var(--card-text-border-size) var(--card-text-border-blur) var(--card-text-border-color), 0 calc(var(--card-text-border-size) * -1) var(--card-text-border-blur) var(--card-text-border-color), calc(var(--card-text-border-size) * 0.7071) calc(var(--card-text-border-size) * 0.7071) var(--card-text-border-blur) var(--card-text-border-color), calc(var(--card-text-border-size) * -0.7071) calc(var(--card-text-border-size) * -0.7071) var(--card-text-border-blur) var(--card-text-border-color), calc(var(--card-text-border-size) * 0.7071) calc(var(--card-text-border-size) * -0.7071) var(--card-text-border-blur) var(--card-text-border-color), calc(var(--card-text-border-size) * -0.7071) calc(var(--card-text-border-size) * 0.7071) var(--card-text-border-blur) var(--card-text-border-color);
+}
+
+.cardText {
+	text-align: center;
+	width: var(--card-width);
+}
+
+.cardName {
+	font-family: "Benevolent Maldness", "Belligerent Madness";
+	font-size: 48px;
+	--card-text-border-size: 3px;
+}
+.cardTypeVariant {
+	font-family: "Benevolent Maldness", "Belligerent Madness";
+	font-size: 24px;
+	--card-text-border-size: 3px;
+}
+.cardDesc, .cardComment {
+	font-family: "Bahnschrift";
+	font-size: 18px;
+}
+.cardComment {
+	font-size: 14px;
+}
+
+.color_battlecry_deathrattle {
+	color: #787878;
+}
+.color_showstopper {
+	color: #00efff;
+}
+.color_overdrive {
+	color: #f1c03c;
+}
+.color_burst {
+	color: #f66aea;
+}
+
+#renderCard {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	color: white;
+}
+
+#renderCardName {
+	width: 426px;
+}
+#renderCardDesc, #renderCardComment {
+	width: 460px;
+}
