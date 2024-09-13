@@ -61,7 +61,7 @@ let CardSections = {
 	},
 	"ShapeStatsBox": {
 		// corrected later to be above ShapeDescriptionBox
-		rect: new DOMRect(50, -1, -1, 50).scale(CARD_SCALE),
+		rect: new DOMRect(50, -1, -1, 54).scale(CARD_SCALE),
 		borderWidth: 4 * CARD_SCALE,
 	}
 };
@@ -69,7 +69,7 @@ let CardSections = {
 class CardGen {
 
 	static async Initialize() {
-		btnMakeCard.addEventListener("click", () => {
+		btnMakeCard.addEventListener("click", async () => {
 			this.CollectCardInfo();
 			this.CorrectCardSections();
 			this.DrawCard();
@@ -111,6 +111,9 @@ class CardGen {
 			typeObj: CardTypes[cardTypeKey],
 			variant: infoCardTypeVariant.value,
 			name: infoCardName.value,
+			hp: infoCardHP.value,
+			dmg: infoCardDMG.value,
+			statuses: infoCardStatuses.value.split(/,| /).filter(x => !IsNullOrWhitespace(x)),
 			desc: infoCardDesc.value,
 			comment: infoCardComment.value,
 		};
@@ -137,11 +140,11 @@ class CardGen {
 		return string;
 	}
 
-	static RenderHTMLToCanvas(element, posX = 0, posY = 0) {
-		if (IsNullOrWhitespace(element.innerText))
+	static async RenderHTMLToCanvas(element, posX = 0, posY = 0) {
+		if (IsNullOrWhitespace(element.innerHTML))
 			return;
 
-		//console.log(element);
+		console.log(element);
 	
 		let options = {
 			logging: false,
@@ -155,20 +158,31 @@ class CardGen {
 		};
 
 		this.ctx.save();
-		let prom = html2canvas(element, options).then((cvs) => {
-			CardGen.ctx.restore();
-		});
+		await html2canvas(element, options);
+		this.ctx.restore();
 	}
 
-	static async DrawImage(img, x, y, width = CARD_WIDTH, height = CARD_HEIGHT) {
-		if (typeof(img) == "string" || img instanceof String) {
-			console.log
-			let src = img;
-			img = new Image();
-			img.src = src;
+	static async LoadImage(src) {
+		let img = new Image();
+		img.src = src;
+
+		try {
+			await img.decode();
+			return img;
 		}
-		await img.decode();
-		this.ctx.drawImage(img, x, y, width, height);
+		catch (e) {
+			console.error(e);
+			return null;
+		}
+	}
+
+	static async DrawImage(img, x, y, width = -1, height = -1) {
+		if (typeof(img) == "string" || img instanceof String)
+			img = await this.LoadImage(img);
+		if (img == null)
+			return;
+		
+		this.ctx.drawImage(img, x, y, width < 0 ? img.naturalWidth * CARD_SCALE : width, height < 0 ? img.naturalHeight * CARD_SCALE : height);
 	}
 
 	static DrawPath(path, fill = true, stroke = true) {
@@ -390,7 +404,7 @@ class CardGen {
 		this.ctx.stroke(path);
 	}
 
-	static DrawStats() {
+	static async DrawStats() {
 		let box = CardSections.ShapeStatsBox;
 		let boxRect = box.rect;
 		this.ctx.strokeStyle = this.cardInfo.typeObj.colorShapeBorder;
@@ -402,10 +416,35 @@ class CardGen {
 		this.CreateRoundedRectPath(-1, boxRect.x, boxRect.y, boxRect.width, boxRect.height, 8 * CARD_SCALE, path);
 		this.ctx.fill(path);
 		this.ctx.stroke(path);
+
+		// draw images
+		let HP = await this.LoadImage("../Icons/HP.png");
+		let DMG = await this.LoadImage("../Icons/DMG.png");
+
+		let boxInternalHeight = boxRect.height - (box.borderWidth*2);
+		let padding = 2 * CARD_SCALE;
+
+		let rectHP = new DOMRect(0, 0, HP.naturalWidth, HP.naturalHeight).scale(boxInternalHeight/HP.naturalHeight);
+		rectHP.x += padding;
+		rectHP.y += padding;
+		rectHP.width -= (padding*2);
+		rectHP.height -= (padding*2);
+		let rectDMG = new DOMRect(0, 0, DMG.naturalWidth, DMG.naturalHeight).scale(boxInternalHeight/DMG.naturalHeight);
+		rectDMG.x += padding;
+		rectDMG.y += padding;
+		rectDMG.width -= (padding*2);
+		rectDMG.height -= (padding*2);
+
+		this.DrawImage(HP, boxRect.x + box.borderWidth + rectHP.x, boxRect.y + box.borderWidth + rectHP.y, rectHP.width, rectHP.height);
+		this.DrawImage(DMG, boxRect.x + boxRect.width - box.borderWidth - rectDMG.x - rectDMG.width, boxRect.y + box.borderWidth + rectDMG.y, rectDMG.width, rectDMG.height);
+
+		// statuses
+		let statusesRect = renderCardStatuses.getBoundingClientRect();
+		await this.RenderHTMLToCanvas(renderCardStatuses, boxRect.x + (boxRect.width/2) - (statusesRect.width/2), boxRect.y + (boxRect.height/2) - (statusesRect.height/2));
 	}
 
-	static DrawText() {
-		function RenderTextCenteredAtBox(renderTextElem, cardSection, xNudge = 0, yNudge = 0, xCenter = true, yCenter = true) {
+	static async DrawText() {
+		async function RenderTextCenteredAtBox(renderTextElem, cardSection, xNudge = 0, yNudge = 0, xCenter = true, yCenter = true) {
 			let rectText = renderTextElem.getBoundingClientRect();
 			let rectSection = cardSection.rect;
 			//console.debug(rectText, rectSection);
@@ -416,16 +455,26 @@ class CardGen {
 			let yOff = rectSection.y + yNudge + (yCenter ? vector[1] : 0);
 			
 			//console.log("Putting", renderTextElem, "at", xOff, yOff);
-			CardGen.RenderHTMLToCanvas(renderTextElem, xOff, yOff);
+			await CardGen.RenderHTMLToCanvas(renderTextElem, xOff, yOff);
 		}
 
+		// title
 		RenderTextCenteredAtBox(renderCardName, CardSections.ShapeType, 0 * CARD_SCALE, 0 * CARD_SCALE);
-
 		if (this.cardInfo.type == "Explore")
 			RenderTextCenteredAtBox(renderCardTypeVariant, CardSections.ShapeTypeVariant, 0 * CARD_SCALE, -1 * CARD_SCALE);
 
-		RenderTextCenteredAtBox(renderCardDesc, CardSections.ShapeDescriptionBox, 0 * CARD_SCALE, 5 * CARD_SCALE, true, false);
+		// stats
+		let rectStatsBox = CardSections.ShapeStatsBox.rect;
+		let rectCardHP = renderCardHP.getBoundingClientRect();
+		let rectCardDMG = renderCardDMG.getBoundingClientRect();
+		let padding = 2 * CARD_SCALE
+		RenderTextCenteredAtBox(renderCardHP, CardSections.ShapeStatsBox, rectStatsBox.height/2 - rectCardHP.width/2 + padding, 0 * CARD_SCALE, false, true);
+		RenderTextCenteredAtBox(renderCardDMG, CardSections.ShapeStatsBox, rectStatsBox.width - rectStatsBox.height/2 - rectCardDMG.width/2 - padding, 0 * CARD_SCALE, false, true);
 
+		// desc
+		RenderTextCenteredAtBox(renderCardDesc, CardSections.ShapeDescriptionBox, 0 * CARD_SCALE, 7 * CARD_SCALE, true, false);
+
+		// comment
 		let rectCardComment = renderCardComment.getBoundingClientRect();
 		let rectDescriptionBox = CardSections.ShapeDescriptionBox.rect;
 		RenderTextCenteredAtBox(renderCardComment, CardSections.ShapeDescriptionBox, 0 * CARD_SCALE, rectDescriptionBox.height - rectCardComment.height - CardSections.ShapeDescriptionBox.borderWidth, true, false);
@@ -435,13 +484,12 @@ class CardGen {
 		this.ctx.clearRect(0,0,CARD_WIDTH,CARD_HEIGHT);
 
 		// If you remove this you're gay. *Enter Sandman*
-		let watermark = new Image();
-		watermark.src = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAcAAAAHBAMAAAA2fErgAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAGUExURQBHq////9VghYAAAAAJcEhZcwAADsMAAA7DAcdvqGQAAAAiSURBVBjTFclBEQAwEIQw1gH4N9vrMxMWYkFTss95cXTxABb/AU81y+VHAAAAAElFTkSuQmCC";
-		await this.DrawImage(watermark, 0, 0, 7, 7);
+		let watermark = await this.LoadImage("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAcAAAAHBAMAAAA2fErgAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAGUExURQBHq////9VghYAAAAAJcEhZcwAADsMAAA7DAcdvqGQAAAAiSURBVBjTFclBEQAwEIQw1gH4N9vrMxMWYkFTss95cXTxABb/AU81y+VHAAAAAElFTkSuQmCC");
+		await this.DrawImage(watermark, 0, 0);
 
-		this.ApplyToTemporaryRender();
+		await this.ApplyToTemporaryRender();
 
-		await this.DrawBackground("../Icons/Mizuki Date.png");
+		await this.DrawBackground("../Characters/Mizuki Date.png");
 		await this.DrawIcon();
 		await this.DrawTypeShape();
 		await this.DrawDescriptionBox();
@@ -449,16 +497,24 @@ class CardGen {
 		await this.DrawText();
 	}
 
-	static ApplyToTemporaryRender() {
+	static async ApplyToTemporaryRender() {
 		let desc = this.cardInfo.desc;
 		if (optionAutoHighlightDesc.checked)
 			desc = this.HighlightReplacer(desc);
 		desc = desc.replaceAll("\n", "<br>");
 		
-		renderCardTypeVariant.innerHTML = infoCardTypeVariant.value.replaceAll("\n", "<br>");
-		renderCardName.innerHTML = infoCardName.value.replaceAll("\n", "<br>");
+		// intentional innerHTML!
+		renderCardTypeVariant.innerHTML = this.cardInfo.variant.replaceAll("\n", "<br>");
+		renderCardName.innerHTML = this.cardInfo.name.replaceAll("\n", "<br>");
+		renderCardHP.innerHTML = this.cardInfo.hp;
+		renderCardDMG.innerHTML = this.cardInfo.dmg;
 		renderCardDesc.innerHTML = desc;
-		renderCardComment.innerHTML = infoCardComment.value.replaceAll("\n", "<br>");
+		renderCardComment.innerHTML = this.cardInfo.comment.replaceAll("\n", "<br>");
+
+		renderCardStatuses.innerHTML = "";
+		for (let x of this.cardInfo.statuses) {
+			renderCardStatuses.appendChild(await this.LoadImage(`../Icons/Statuses/${x}.png`));
+		}
 	}
 }
 
