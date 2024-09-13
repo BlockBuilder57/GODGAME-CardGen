@@ -1,9 +1,18 @@
 :root {
-	--card-width: 506px;
-	--card-height: 702px;
+	--card-scale: 1.0;
+	--card-width: calc(506px * var(--card-scale));
+	--card-height: calc(702px * var(--card-scale));
 
-	--card-text-border-size: 1.25px;
-	--card-text-border-blur: 0.6px;
+	--card-font-size-name: calc(48px * var(--card-scale));
+	--card-font-size-variant: calc(24px * var(--card-scale));
+	--card-font-size-description: calc(18px * var(--card-scale));
+	--card-font-size-comment: calc(14px * var(--card-scale));
+
+	--card-font-family-name-variant: "Benevolent Maldness", "Belligerent Madness";
+	--card-font-family-description-comment: "Bahnschrift";
+
+	--card-text-border-size: calc(1.25px * var(--card-scale));
+	--card-text-border-blur: calc(0.6px * var(--card-scale));
 	--card-text-border-color: black;
 }
 
@@ -24,6 +33,8 @@ p {
 .cardSized {
 	width: var(--card-width) !important;
 	height: var(--card-height) !important;
+	min-width: var(--card-width) !important;
+	min-height: var(--card-height) !important;
 }
 
 #canvas {
@@ -36,25 +47,24 @@ p {
 
 .cardText {
 	text-align: center;
-	width: var(--card-width);
+	max-width: var(--card-width);
 }
 
-.cardName {
-	font-family: "Benevolent Maldness", "Belligerent Madness";
-	font-size: 48px;
-	--card-text-border-size: 3px;
+.cardName, .cardTypeVariant {
+	font-family: var(--card-font-family-name-variant);
+	font-size: var(--card-font-size-name);
+	--card-text-border-size: calc(3px * var(--card-scale));
 }
 .cardTypeVariant {
-	font-family: "Benevolent Maldness", "Belligerent Madness";
-	font-size: 24px;
-	--card-text-border-size: 3px;
+	font-size: var(--card-font-size-variant);
 }
+
 .cardDesc, .cardComment {
-	font-family: "Bahnschrift";
-	font-size: 18px;
+	font-family: var(--card-font-family-description-comment);
+	font-size: var(--card-font-size-description);
 }
 .cardComment {
-	font-size: 14px;
+	font-size: var(--card-font-size-comment);
 }
 
 .color_battlecry_deathrattle {
@@ -75,11 +85,8 @@ p {
 	flex-direction: column;
 	align-items: center;
 	color: white;
-}
 
-#renderCardName {
-	width: 426px;
-}
-#renderCardDesc, #renderCardComment {
-	width: 460px;
+	/* Hide on screen */
+	/*opacity: 0;
+	pointer-events: none;*/
 }

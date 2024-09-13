@@ -28,9 +28,6 @@ const cyrb53a = function(str, seed = 0) {
 	return 2097152 * (h2 >>> 0) + (h1 >>> 11);
 };
 
-
-
-
 function ClearTextFormattingOnBlur(e) {
 	e.srcElement.innerText = e.srcElement.textContent;
 }
@@ -39,4 +36,31 @@ function ClearTextFormattingOnPaste(e) {
 	e.preventDefault();
 	var text = e.clipboardData.getData("text/plain");
 	document.execCommand("insertHTML", false, text);
+}
+
+// Extensions
+
+DOMRectReadOnly.prototype.relativeCenter = function(floor = false) {
+	if (floor)
+		return [Math.floor(this.width/2.0), Math.floor(this.height/2.0)];
+	return [this.width/2.0, this.height/2.0];
+}
+DOMRectReadOnly.prototype.scale = function(scale = 1.0) {
+	this.x *= scale;
+	this.y *= scale;
+	this.width *= scale;
+	this.height *= scale;
+	return this;
+}
+
+// Vector-like operations
+Array.prototype.add = function(other) {
+	for(let i = 0; i < Math.min(this.length, other.length); i++)
+		this[i] += other[i];
+	return this;
+}
+Array.prototype.subtract = function(other) {
+	for(let i = 0; i < Math.min(this.length, other.length); i++)
+		this[i] -= other[i];
+	return this;
 }

@@ -1,49 +1,107 @@
-const CardTypes = {
+const CARD_SCALE = 1.0;
+const CARD_WIDTH = 506 * CARD_SCALE;
+const CARD_HEIGHT = 702 * CARD_SCALE;
+
+let CardTypes = {
 	"Basic": {
-		"colorType": "#BED8C1",
-		"colorCardBorder": "#003f06",
-		"colorShapeFill": "#255629C0",
-		"colorShapeBorder": "#003104",
+		colorType: "#BED8C1",
+		colorCardBorder: "#003f06",
+		colorShapeFill: "#255629C0",
+		colorShapeBorder: "#003104",
+		shapeRect: new DOMRect(40, 20, -1, 80).scale(CARD_SCALE),
 	},
 	"Skilled": {
-		"colorType": "#0DC2F0",
-		"colorCardBorder": "#00243f",
-		"colorShapeFill": "#0055dfC0",
-		"colorShapeBorder": "#00236f",
+		colorType: "#0DC2F0",
+		colorCardBorder: "#00243f",
+		colorShapeFill: "#0055dfC0",
+		colorShapeBorder: "#00236f",
+		shapeRect: new DOMRect(20, 20, -1, 80).scale(CARD_SCALE),
 	},
 	"Champion": {
-		"colorType": "#A183C1",
-		"colorCardBorder": "#353535",
-		"colorShapeFill": "#5f3279C0",
-		"colorShapeBorder": "#13012f",
+		colorType: "#A183C1",
+		colorCardBorder: "#353535",
+		colorShapeFill: "#5f3279C0",
+		colorShapeBorder: "#13012f",
+		shapeRect: new DOMRect(20, 20, -1, 80).scale(CARD_SCALE),
 	},
 	"Environment": {
-		"colorType": "#C7C7C7",
-		"colorCardBorder": "#797979",
-		"colorShapeFill": "#a0a0a0C0",
-		"colorShapeBorder": "#545454",
+		colorType: "#C7C7C7",
+		colorCardBorder: "#797979",
+		colorShapeFill: "#a0a0a0C0",
+		colorShapeBorder: "#545454",
+		shapeRect: new DOMRect(30, 20, -1, 80).scale(CARD_SCALE),
 	},
 	"Explore": {
-		"colorType": "#E5DDB0",
-		"colorCardBorder": "#b5923e",
-		"colorShapeFill": "#CCCC57C0",
-		"colorShapeBorder": "#a88531",
+		colorType: "#E5DDB0",
+		colorCardBorder: "#b5923e",
+		colorShapeFill: "#CCCC57C0",
+		colorShapeBorder: "#a88531",
+		shapeRect: new DOMRect(10, 20, -1, 80).scale(CARD_SCALE),
+	}
+};
+
+let CardSections = {
+	"Background": {
+		rect: new DOMRect(0, 0, CARD_WIDTH, CARD_HEIGHT),
+		borderWidth: 6 * CARD_SCALE
+	},
+	"ShapeType": {
+		// gotten from ShapeTypes
+		rect: null,
+		borderWidth: 4 * CARD_SCALE,
+	},
+	"ShapeTypeVariant": {
+		// corrected later to be below ShapeType
+		rect: new DOMRect(180, -1, -1, 40).scale(CARD_SCALE),
+		borderWidth: 4 * CARD_SCALE,
+	},
+	"ShapeDescriptionBox": {
+		rect: new DOMRect(20, 442, -1, 240).scale(CARD_SCALE),
+		borderWidth: 4 * CARD_SCALE,
+	},
+	"ShapeStatsBox": {
+		// corrected later to be above ShapeDescriptionBox
+		rect: new DOMRect(50, -1, -1, 50).scale(CARD_SCALE),
+		borderWidth: 4 * CARD_SCALE,
 	}
 };
 
 class CardGen {
 
-	static CARD_WIDTH = 506;
-	static CARD_HEIGHT = 702;
-
 	static async Initialize() {
 		btnMakeCard.addEventListener("click", () => {
 			this.CollectCardInfo();
+			this.CorrectCardSections();
 			this.DrawCard();
 		});
 		
 		this.canvas = canvas;
+		this.canvas.width = CARD_WIDTH;
+		this.canvas.height = CARD_HEIGHT;
 		this.ctx = this.canvas.getContext("2d");
+	}
+
+	// Corrects widths and such for CardSections
+	static CorrectCardSections() {
+		// Get ShapeType rect from current card type
+		CardSections.ShapeType.rect = this.cardInfo.typeObj.shapeRect;
+		
+		// Loop through all rects and correct them
+		for (let [key, shape] of Object.entries(CardSections)) {
+			if (shape.rect == null)
+				console.warn("Skipping correction of null rect");
+
+			if (shape.rect.width < 0)
+				shape.rect.width = CARD_WIDTH - (shape.rect.x*2);
+			if (shape.rect.height < 0)
+				shape.rect.height = CARD_HEIGHT - (shape.rect.y*2);
+		}
+
+		// Always nestle under ShapeType
+		CardSections.ShapeTypeVariant.rect.y = CardSections.ShapeType.rect.y + CardSections.ShapeType.rect.height - CardSections.ShapeType.borderWidth;
+
+		// Always nestle on top of ShapeDescriptionBox
+		CardSections.ShapeStatsBox.rect.y = CardSections.ShapeDescriptionBox.rect.y - CardSections.ShapeStatsBox.rect.height +  CardSections.ShapeStatsBox.borderWidth;
 	}
 
 	static CollectCardInfo() {
@@ -55,7 +113,7 @@ class CardGen {
 			name: infoCardName.value,
 			desc: infoCardDesc.value,
 			comment: infoCardComment.value,
-		}
+		};
 	}
 
 	static HighlightReplacer(string) {
@@ -86,11 +144,14 @@ class CardGen {
 		//console.log(element);
 	
 		let options = {
+			logging: false,
 			allowTaint: true,
 			canvas: this.canvas,
 			backgroundColor: null,
 			x: -posX, // WHY IS IT NEGATIVE
-			y: -posY
+			y: -posY,
+			windowWidth: 4096,
+			windowHeight: 4096
 		};
 
 		this.ctx.save();
@@ -99,11 +160,19 @@ class CardGen {
 		});
 	}
 
-	static OUTER_BORDER_WIDTH = 6;
-	static SHAPE_BORDER_WIDTH = 4;
+	static async DrawImage(img, x, y, width = CARD_WIDTH, height = CARD_HEIGHT) {
+		if (typeof(img) == "string" || img instanceof String) {
+			console.log
+			let src = img;
+			img = new Image();
+			img.src = src;
+		}
+		await img.decode();
+		this.ctx.drawImage(img, x, y, width, height);
+	}
 
 	static DrawPath(path, fill = true, stroke = true) {
-		console.log(path)
+		//console.log(path)
 		if (fill)
 			this.ctx.fill(path);
 		if (stroke)
@@ -114,56 +183,193 @@ class CardGen {
 		if (borderWidth < 0)
 			borderWidth = this.ctx.lineWidth;
 
+		x += borderWidth/2;
+		y += borderWidth/2;
+		width -= borderWidth;
+		height -= borderWidth;
+
 		let path = existingPath == null ? new Path2D() : existingPath;
-		path.roundRect(x + (borderWidth/2), y + (borderWidth/2), width - borderWidth, height - borderWidth, radii);
+		path.roundRect(x, y, width, height, radii);
 		return path;
 	}
 
-	static DrawBackground(imgBackground) {
-		this.ctx.strokeStyle = this.cardInfo.typeObj.colorCardBorder;
-		this.ctx.fillStyle = this.cardInfo.typeObj.colorType;
-		this.ctx.lineWidth = this.OUTER_BORDER_WIDTH;
-		
-		this.ctx.beginPath();
-		let path = this.CreateRoundedRectPath(-1, 0, 0, this.CARD_WIDTH, this.CARD_HEIGHT, 27);
-		this.ctx.fill(path);
-		if (imgBackground != null)
-			this.ctx.drawImage(imgBackground, 0, 0);
-		this.ctx.stroke(path);
+	static CreateCircleRoundedRectPath(borderWidth, x, y, width, height, cornerRadius, existingPath) {
+		if (borderWidth < 0)
+			borderWidth = this.ctx.lineWidth;
+
+		x += borderWidth/2;
+		y += borderWidth/2;
+		width -= borderWidth;
+		height -= borderWidth;
+
+		// let negative radiuses bulge out
+		let ccwise = cornerRadius > 0;
+		cornerRadius = Math.abs(cornerRadius);
+
+		let path = existingPath == null ? new Path2D() : existingPath;
+		path.arc(x,         y,          cornerRadius, Math.PI/2,   0,          ccwise);
+		path.arc(x + width, y,          cornerRadius, Math.PI,     Math.PI/2,  ccwise);
+		path.arc(x + width, y + height, cornerRadius, Math.PI*1.5, Math.PI,    ccwise);
+		path.arc(x,         y + height, cornerRadius, 0,           -Math.PI/2, ccwise);
+		path.closePath();
+		return path;
 	}
 
-	static DrawIcon() {
+	static CreateCrownPath(borderWidth, x, y, width, height, tipOffset, tipDepth, cantBottom, existingPath) {
+		if (borderWidth < 0)
+			borderWidth = this.ctx.lineWidth;
 
+		x += borderWidth/2;
+		y += borderWidth/2;
+		width -= borderWidth;
+		height -= borderWidth;
+
+		let path = existingPath == null ? new Path2D() : existingPath;
+
+		let shapeRect = new DOMRect(x, y, width, height);
+		let center = shapeRect.relativeCenter();
+
+		// top of crown
+		path.moveTo(shapeRect.x, shapeRect.y);
+		path.lineTo(shapeRect.x + center[0] - tipOffset, shapeRect.y + tipDepth);
+		path.lineTo(shapeRect.x + center[0], shapeRect.y);
+		path.lineTo(shapeRect.x + center[0] + tipOffset, shapeRect.y + tipDepth);
+		path.lineTo(shapeRect.x + shapeRect.width, shapeRect.y);
+
+		// bottom
+		let offCant = Math.tan(cantBottom * (Math.PI/180)) * shapeRect.height;
+		path.lineTo(shapeRect.x + shapeRect.width - offCant, shapeRect.y + shapeRect.height);
+		path.lineTo(shapeRect.x + offCant, shapeRect.y + shapeRect.height);
+		path.closePath();
+		return path;
+	}
+
+	static CreateSpikedBoxPath(borderWidth, x, y, width, height, existingPath) {
+		if (borderWidth < 0)
+			borderWidth = this.ctx.lineWidth;
+
+		x += borderWidth/2;
+		y += borderWidth/2;
+		width -= borderWidth;
+		height -= borderWidth;
+
+		let path = existingPath == null ? new Path2D() : existingPath;
+
+		// divided by two, because we only need half of the height to get a right triangle
+		let spikeWidth = height/2;
+
+		path.moveTo(x + spikeWidth, y);
+		path.lineTo(x + width - spikeWidth, y);
+		path.lineTo(x + width, y + spikeWidth);
+		path.lineTo(x + width - spikeWidth, y + height);
+		path.lineTo(x + spikeWidth, y + height);
+		path.lineTo(x, y + spikeWidth);
+		path.closePath();
+		return path;
+	}
+
+	// Takes in a cant in degrees for each side
+	static CreateCantedBoxPath(borderWidth, x, y, width, height, cantLeft, cantRight, existingPath) {
+		if (borderWidth < 0)
+			borderWidth = this.ctx.lineWidth;
+
+		x += borderWidth/2;
+		y += borderWidth/2;
+		width -= borderWidth;
+		height -= borderWidth;
+
+		let path = existingPath == null ? new Path2D() : existingPath;
+
+		// soh cah toa baby
+		let offLeft = Math.tan(cantLeft * (Math.PI/180)) * height;
+		let offRight = Math.tan(cantRight * (Math.PI/180)) * height;
+
+		path.moveTo(x + Math.max(0, offLeft), y);
+		path.lineTo(x + width + Math.min(0, offRight), y);
+		path.lineTo(x + width - Math.max(0, offRight), y + height);
+		path.lineTo(x - Math.min(0, offLeft), y + height);
+
+		path.closePath();
+		return path;
+	}
+
+	static async DrawBackground(imgBackground, fill = true, stroke = true) {
+		let box = CardSections.Background;
+		let boxRect = box.rect;
+		this.ctx.strokeStyle = this.cardInfo.typeObj.colorCardBorder;
+		this.ctx.fillStyle = this.cardInfo.typeObj.colorType;
+		this.ctx.lineWidth = box.borderWidth;
+		
+		let path = new Path2D();
+		this.ctx.beginPath();
+		this.CreateRoundedRectPath(-1, boxRect.x, boxRect.y, boxRect.width, boxRect.height, 27 * CARD_SCALE, path);
+		if (fill)
+			this.ctx.fill(path);
+		if (imgBackground != null) {
+			this.ctx.save();
+			this.ctx.clip(path);
+			await this.DrawImage(imgBackground, 0, 0);
+			this.ctx.restore();
+		}
+		if (stroke)
+			this.ctx.stroke(path);
+	}
+
+	static async DrawIcon(icon) {
+		if (icon == null)
+			return;
+		
+		await this.DrawImage(icon, 0, 0);
 	}
 
 	static DrawTypeShape() {
+		let shapeType = CardSections.ShapeType;
+		let shapeRect = shapeType.rect;
+
 		this.ctx.strokeStyle = this.cardInfo.typeObj.colorShapeBorder;
 		this.ctx.fillStyle = this.cardInfo.typeObj.colorShapeFill;
-		this.ctx.lineWidth = this.SHAPE_BORDER_WIDTH;
+		this.ctx.lineWidth = shapeType.borderWidth;
 		
 		// https://developer.mozilla.org/en-US/docs/Web/API/Path2D
 		let path = new Path2D();
 		this.ctx.beginPath();
 		
 		switch (this.cardInfo.type) {
-			case "Basic":
-				this.CreateRoundedRectPath(-1, 36, 21, 434, 79, 8, path);
+			case "Basic": {
+				// smaller box
+				this.CreateRoundedRectPath(-1, shapeRect.x, shapeRect.y, shapeRect.width, shapeRect.height, 8 * CARD_SCALE, path);
 				break;
-			case "Skilled":
-				path.lineTo(15, 15);
-				path.arcTo(500, 15, 500, 100, 100);
-				path.closePath();
+			}
+			case "Skilled": {
+				// rounded profile box
+				const cornerRadius = 20 * CARD_SCALE;
+				this.CreateCircleRoundedRectPath(-1, shapeRect.x, shapeRect.y, shapeRect.width, shapeRect.height, cornerRadius, path);
 				break;
-			case "Champion":
+			}
+			case "Champion": {
+				// crown shaped
+				const crownTipOffset = shapeRect.width/5;
+				const crownTipDepth = 10 * CARD_SCALE;
+				const crownCant = 15;
+				this.CreateCrownPath(-1, shapeRect.x, shapeRect.y, shapeRect.width, shapeRect.height, crownTipOffset, crownTipDepth, crownCant, path);
 				break;
-			case "Environment":
+			}
+			case "Environment": {
+				// canted box
+				const cant = -15;
+				this.CreateCantedBoxPath(-1, shapeRect.x, shapeRect.y, shapeRect.width, shapeRect.height, -cant, cant, path);
 				break;
-			case "Explore":
-				this.CreateRoundedRectPath(-1, 13, 12, 480, 74, 8, path);
+			}
+			case "Explore": {
+				// spiked box (ala Xenoblade 2)
+				this.CreateSpikedBoxPath(-1, shapeRect.x, shapeRect.y, shapeRect.width, shapeRect.height, path);
 				
-				if (!IsNullOrWhitespace(this.cardInfo.variant))
-					this.CreateRoundedRectPath(-1, 149, 82, 209, 49, 8, path);
+				if (!IsNullOrWhitespace(this.cardInfo.variant)) {
+					shapeRect = CardSections.ShapeTypeVariant.rect;
+					this.CreateRoundedRectPath(-1, shapeRect.x, shapeRect.y, shapeRect.width, shapeRect.height, 8 * CARD_SCALE, path);
+				}
 				break;
+			}
 		}
 
 		this.ctx.fill(path);
@@ -171,57 +377,76 @@ class CardGen {
 	}
 
 	static DrawDescriptionBox() {
+		let box = CardSections.ShapeDescriptionBox;
+		let boxRect = box.rect;
 		this.ctx.strokeStyle = this.cardInfo.typeObj.colorShapeBorder;
 		this.ctx.fillStyle = this.cardInfo.typeObj.colorShapeFill;
-		this.ctx.lineWidth = this.SHAPE_BORDER_WIDTH;
+		this.ctx.lineWidth = box.borderWidth;
 		
+		let path = new Path2D();
 		this.ctx.beginPath();
-		this.DrawPath(this.CreateRoundedRectPath(this.SHAPE_BORDER_WIDTH, 19, 448, 468, 234, 8));
+		this.CreateRoundedRectPath(-1, boxRect.x, boxRect.y, boxRect.width, boxRect.height, 8 * CARD_SCALE, path);
+		this.ctx.fill(path);
+		this.ctx.stroke(path);
 	}
 
 	static DrawStats() {
+		let box = CardSections.ShapeStatsBox;
+		let boxRect = box.rect;
 		this.ctx.strokeStyle = this.cardInfo.typeObj.colorShapeBorder;
 		this.ctx.fillStyle = this.cardInfo.typeObj.colorShapeFill;
-		this.ctx.lineWidth = this.SHAPE_BORDER_WIDTH;
+		this.ctx.lineWidth = box.borderWidth;
 		
+		let path = new Path2D();
 		this.ctx.beginPath();
-		this.DrawPath(this.CreateRoundedRectPath(this.SHAPE_BORDER_WIDTH, 33, 396, 440, 56, 8));
+		this.CreateRoundedRectPath(-1, boxRect.x, boxRect.y, boxRect.width, boxRect.height, 8 * CARD_SCALE, path);
+		this.ctx.fill(path);
+		this.ctx.stroke(path);
 	}
 
 	static DrawText() {
-		let rectName = renderCardName.getBoundingClientRect();
-		let xOffName = (this.CARD_WIDTH - rectName.width) / 2;
-		let yOffName = 35;
-		if (this.cardInfo.type == "Explore")
-			yOffName -= 12;
-		this.RenderHTMLToCanvas(renderCardName, xOffName, yOffName);
+		function RenderTextCenteredAtBox(renderTextElem, cardSection, xNudge = 0, yNudge = 0, xCenter = true, yCenter = true) {
+			let rectText = renderTextElem.getBoundingClientRect();
+			let rectSection = cardSection.rect;
+			//console.debug(rectText, rectSection);
+			let vector = rectSection.relativeCenter(true).subtract(rectText.relativeCenter(true));
+			//console.debug(vector);
 
-		if (this.cardInfo.type == "Explore") {
-			let rectVariant = renderCardTypeVariant.getBoundingClientRect();
-			let xOffVariant = (this.CARD_WIDTH - rectVariant.width) / 2;
-			this.RenderHTMLToCanvas(renderCardTypeVariant, xOffVariant, 93);
+			let xOff = rectSection.x + xNudge + (xCenter ? vector[0] : 0);
+			let yOff = rectSection.y + yNudge + (yCenter ? vector[1] : 0);
+			
+			//console.log("Putting", renderTextElem, "at", xOff, yOff);
+			CardGen.RenderHTMLToCanvas(renderTextElem, xOff, yOff);
 		}
 
-		let rectDesc = renderCardDesc.getBoundingClientRect();
-		let xOffDesc = (this.CARD_WIDTH - rectDesc.width) / 2;
-		this.RenderHTMLToCanvas(renderCardDesc, xOffDesc, 454);
+		RenderTextCenteredAtBox(renderCardName, CardSections.ShapeType, 0 * CARD_SCALE, 0 * CARD_SCALE);
 
-		let rectComment = renderCardComment.getBoundingClientRect();
-		let xOffComment = (this.CARD_WIDTH - rectComment.width) / 2;
-		this.RenderHTMLToCanvas(renderCardComment, xOffComment, 677 - rectComment.height);
+		if (this.cardInfo.type == "Explore")
+			RenderTextCenteredAtBox(renderCardTypeVariant, CardSections.ShapeTypeVariant, 0 * CARD_SCALE, -1 * CARD_SCALE);
+
+		RenderTextCenteredAtBox(renderCardDesc, CardSections.ShapeDescriptionBox, 0 * CARD_SCALE, 5 * CARD_SCALE, true, false);
+
+		let rectCardComment = renderCardComment.getBoundingClientRect();
+		let rectDescriptionBox = CardSections.ShapeDescriptionBox.rect;
+		RenderTextCenteredAtBox(renderCardComment, CardSections.ShapeDescriptionBox, 0 * CARD_SCALE, rectDescriptionBox.height - rectCardComment.height - CardSections.ShapeDescriptionBox.borderWidth, true, false);
 	}
 
-	static DrawCard() {
-		this.ctx.clearRect(0,0,999,999);
+	static async DrawCard() {
+		this.ctx.clearRect(0,0,CARD_WIDTH,CARD_HEIGHT);
+
+		// If you remove this you're gay. *Enter Sandman*
+		let watermark = new Image();
+		watermark.src = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAcAAAAHBAMAAAA2fErgAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAGUExURQBHq////9VghYAAAAAJcEhZcwAADsMAAA7DAcdvqGQAAAAiSURBVBjTFclBEQAwEIQw1gH4N9vrMxMWYkFTss95cXTxABb/AU81y+VHAAAAAElFTkSuQmCC";
+		await this.DrawImage(watermark, 0, 0, 7, 7);
 
 		this.ApplyToTemporaryRender();
 
-		this.DrawBackground();
-		//this.DrawIcon();
-		this.DrawTypeShape();
-		this.DrawDescriptionBox();
-		this.DrawStats();
-		this.DrawText();
+		await this.DrawBackground("../Icons/Mizuki Date.png");
+		await this.DrawIcon();
+		await this.DrawTypeShape();
+		await this.DrawDescriptionBox();
+		await this.DrawStats();
+		await this.DrawText();
 	}
 
 	static ApplyToTemporaryRender() {
@@ -230,10 +455,10 @@ class CardGen {
 			desc = this.HighlightReplacer(desc);
 		desc = desc.replaceAll("\n", "<br>");
 		
-		renderCardTypeVariant.innerHTML = infoCardTypeVariant.value;
-		renderCardName.innerHTML = infoCardName.value;
+		renderCardTypeVariant.innerHTML = infoCardTypeVariant.value.replaceAll("\n", "<br>");
+		renderCardName.innerHTML = infoCardName.value.replaceAll("\n", "<br>");
 		renderCardDesc.innerHTML = desc;
-		renderCardComment.innerHTML = infoCardComment.value;
+		renderCardComment.innerHTML = infoCardComment.value.replaceAll("\n", "<br>");
 	}
 }
 

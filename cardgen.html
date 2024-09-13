@@ -7,13 +7,7 @@
 	</head>
 	<body>
 		<div id="container">
-			<canvas id="canvas" width="506" height="702" class="cardSized"></canvas>
-			<div id="renderCard" class="cardSized">
-				<p id="renderCardTypeVariant" class="cardText textOutline cardTypeVariant"></p>
-				<p id="renderCardName" class="cardText textOutline cardName"></p>
-				<p id="renderCardDesc" class="cardText textOutline cardDesc"></p>
-				<p id="renderCardComment" class="cardText textOutline cardComment"></p>
-			</div>
+			<canvas id="canvas" class="cardSized"></canvas>
 			<div id="infoEditable" class="cardSized">
 				<select id="infoCardType">
 					<option>Basic</option>
@@ -22,15 +16,21 @@
 					<option>Environment</option>
 					<option>Explore</option>
 				</select>
-				<input type="text" id="infoCardTypeVariant" placeholder="Card Variant (Vistor, Consumable, etc.)" class="cardText cardTypeVariant">
-				<input type="text" id="infoCardName" placeholder="Card Name" class="cardText cardName">
-				<textarea id="infoCardDesc" placeholder="Card Description" class="cardText cardDesc" rows="8"></textarea>
-				<input type="text" id="infoCardComment" placeholder="Card Comment" class="cardText cardComment">
+				<textarea id="infoCardName" placeholder="Card Name" class="cardText cardName" rows="1"></textarea>
+				<textarea id="infoCardTypeVariant" placeholder="Card Variant (Vistor, Consumable, etc.)" class="cardText cardTypeVariant" rows="1"></textarea>
+				<textarea id="infoCardDesc" placeholder="Card Description" class="cardText cardDesc" rows="9"></textarea>
+				<textarea id="infoCardComment" placeholder="Card Comment" class="cardText cardComment" rows="1"></textarea>
 				<div>
 					<input type="checkbox" checked id="optionAutoHighlightDesc">
 					<label for="optionAutoHighlightDesc">Auto highlight card description?</label><br>
 				</div>
 				<button id="btnMakeCard">Make Card</button>
+			</div>
+			<div id="renderCard" class="cardSized">
+				<p id="renderCardName" class="cardText textOutline cardName"></p>
+				<p id="renderCardTypeVariant" class="cardText textOutline cardTypeVariant"></p>
+				<p id="renderCardDesc" class="cardText textOutline cardDesc"></p>
+				<p id="renderCardComment" class="cardText textOutline cardComment"></p>
 			</div>
 		</div>
 	</body>
