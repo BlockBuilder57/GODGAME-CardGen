@@ -17,6 +17,13 @@
 	--card-text-border-color: black;
 }
 
+@media (prefers-color-scheme: dark) {
+	body {
+		background: #222;
+		color: white;
+	}
+}
+
 body, input, select, option {
 	font-family: var(--card-font-family-description-comment);
 }

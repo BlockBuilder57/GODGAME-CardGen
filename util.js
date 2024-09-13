@@ -38,27 +38,48 @@ function ClearTextFormattingOnPaste(e) {
 	document.execCommand("insertHTML", false, text);
 }
 
-function CreateLetterbox(rect, box_width, box_height) {
+function CreateLetterbox(rect, box_width, box_height, scale_x = true, scale_y = true) {
 	let ret = new DOMRect(0, 0, box_width, box_height);
+	console.log(ret);
 
 	// get scaling factors for dimensions
 	let aspect_box = box_width / box_height;
 	let aspect_rect = rect.width / rect.height;
 
-	let scalar = aspect_box / aspect_rect;
+	let scalar = aspect_rect / aspect_box;
 
-	if (rect.width > rect.height) {
-		// for when the width is bigger than the height (ie 16:9)
-		ret.height = box_height * scalar;
-		ret.y = ((box_height - ret.height) / 2);
+	console.log(aspect_box, aspect_rect, scalar);
+
+	if (aspect_rect == 1) {
+		if (box_width > box_height) {
+			ret.width = box_height;
+			ret.height = box_height;
+		}
+		else {
+			ret.width = box_width;
+			ret.height = box_width;
+		}
+		
+		ret.x = (box_width/2) - (ret.width/2);
+		ret.y = (box_height/2) - (ret.height/2);
 	}
 	else {
-		// for when the height is bigger than the width (ie 9:16)
-		// i still don't know why the math checks out here, but it does
-		ret.width = box_height * (aspect_box / scalar);
-		ret.x = ((box_width - ret.width) / 2);
+		if (rect.width < rect.height) {
+			// for when the width is bigger than the height (ie 16:9)
+			if (scale_y)
+				ret.height = box_height * scalar;
+			ret.y = ((box_height - ret.height) / 2);
+		}
+		else {
+			// for when the height is bigger than the width (ie 9:16)
+			// i still don't know why the math checks out here, but it does
+			if (scale_x)
+				ret.width = box_height * (aspect_box / scalar);
+			ret.x = ((box_width - ret.width) / 2);
+		}
 	}
 
+	console.log(ret);
 	return ret;
 }
 

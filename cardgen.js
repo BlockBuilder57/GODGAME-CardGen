@@ -71,53 +71,15 @@ class CardGen {
 	static async Initialize() {
 		btnMakeCard.addEventListener("click", async () => {
 			this.CollectCardInfo();
+			await this.ApplyToTemporaryRender();
 			this.CorrectCardSections();
-			this.DrawCard();
+			await this.DrawCard();
 		});
 		
 		this.canvas = canvas;
 		this.canvas.width = CARD_WIDTH;
 		this.canvas.height = CARD_HEIGHT;
 		this.ctx = this.canvas.getContext("2d");
-	}
-
-	// Corrects widths and such for CardSections
-	static CorrectCardSections() {
-		// Get ShapeType rect from current card type
-		CardSections.ShapeType.rect = this.cardInfo.typeObj.shapeRect;
-		
-		// Loop through all rects and correct them
-		for (let [key, shape] of Object.entries(CardSections)) {
-			if (shape.rect == null)
-				console.warn("Skipping correction of null rect");
-
-			if (shape.rect.width < 0)
-				shape.rect.width = CARD_WIDTH - (shape.rect.x*2);
-			if (shape.rect.height < 0)
-				shape.rect.height = CARD_HEIGHT - (shape.rect.y*2);
-		}
-
-		// Always nestle under ShapeType
-		CardSections.ShapeTypeVariant.rect.y = CardSections.ShapeType.rect.y + CardSections.ShapeType.rect.height - CardSections.ShapeType.borderWidth;
-
-		// Always nestle on top of ShapeDescriptionBox
-		CardSections.ShapeStatsBox.rect.y = CardSections.ShapeDescriptionBox.rect.y - CardSections.ShapeStatsBox.rect.height +  CardSections.ShapeStatsBox.borderWidth;
-	}
-
-	static CollectCardInfo() {
-		let cardTypeKey = infoCardType.options[infoCardType.selectedIndex].value;
-		this.cardInfo = {
-			type: cardTypeKey,
-			typeObj: CardTypes[cardTypeKey],
-			variant: infoCardTypeVariant.value,
-			name: infoCardName.value,
-			hp: infoCardHP.value,
-			dmg: infoCardDMG.value,
-			statuses: infoCardStatuses.value.split(/,| /).filter(x => !IsNullOrWhitespace(x)),
-			desc: infoCardDesc.value,
-			comment: infoCardComment.value,
-			isCharacter: optionIsCharacter.checked,
-		};
 	}
 
 	static HighlightReplacer(string) {
@@ -141,11 +103,83 @@ class CardGen {
 		return string;
 	}
 
+	static CollectCardInfo() {
+		let cardTypeKey = infoCardType.options[infoCardType.selectedIndex].value;
+		this.cardInfo = {
+			type: cardTypeKey,
+			typeObj: CardTypes[cardTypeKey],
+			variant: infoCardTypeVariant.value,
+			name: infoCardName.value,
+			hp: infoCardHP.value,
+			dmg: infoCardDMG.value,
+			statuses: infoCardStatuses.value.split(/,| /).filter(x => !IsNullOrWhitespace(x)),
+			desc: infoCardDesc.value,
+			comment: infoCardComment.value,
+			
+		};
+		this.cardOptions = {
+			autoHighlightDesc: optionAutoHighlightDesc.checked,
+			isCharacter: optionIsCharacter.checked,
+			imgBackground: optionImgBackground.value,
+			imgIcon: optionImgIcon.value,
+		}
+	}
+
+	static async ApplyToTemporaryRender() {
+		let desc = this.cardInfo.desc;
+		if (this.cardOptions.autoHighlightDesc)
+			desc = this.HighlightReplacer(desc);
+		desc = desc.replaceAll("\n", "<br>");
+		
+		// intentional innerHTML!
+		renderCardTypeVariant.innerHTML = this.cardInfo.variant.replaceAll("\n", "<br>");
+		renderCardName.innerHTML = this.cardInfo.name.replaceAll("\n", "<br>");
+		renderCardHP.innerHTML = this.cardInfo.hp;
+		renderCardDMG.innerHTML = this.cardInfo.dmg;
+		renderCardDesc.innerHTML = desc;
+		renderCardComment.innerHTML = this.cardInfo.comment.replaceAll("\n", "<br>");
+
+		renderCardStatuses.innerHTML = "";
+		for (let x of this.cardInfo.statuses) {
+			let img = await this.LoadImage(`Icons/Statuses/${x}.png`);
+			if (img != null)
+				renderCardStatuses.appendChild(img);
+		}
+	}
+
+	// Corrects widths and such for CardSections
+	static CorrectCardSections() {
+		// Get ShapeType rect from current card type
+		CardSections.ShapeType.rect = this.cardInfo.typeObj.shapeRect;
+
+		// Always nestle under ShapeType
+		CardSections.ShapeTypeVariant.rect.y = CardSections.ShapeType.rect.y + CardSections.ShapeType.rect.height - CardSections.ShapeType.borderWidth;
+		// Scale to the text we need to draw
+		let rectVariant = renderCardTypeVariant.getBoundingClientRect();
+		let sidePadding = 16 * CARD_SCALE;
+		CardSections.ShapeTypeVariant.rect.width = rectVariant.width + sidePadding;
+		CardSections.ShapeTypeVariant.rect.x = Math.floor((CARD_WIDTH/2) - (CardSections.ShapeTypeVariant.rect.width/2));
+
+		// Always nestle on top of ShapeDescriptionBox
+		CardSections.ShapeStatsBox.rect.y = CardSections.ShapeDescriptionBox.rect.y - CardSections.ShapeStatsBox.rect.height +  CardSections.ShapeStatsBox.borderWidth;
+		
+		// Loop through all rects and correct them
+		for (let [key, shape] of Object.entries(CardSections)) {
+			if (shape.rect == null)
+				console.warn("Skipping correction of null rect");
+
+			if (shape.rect.width < 0)
+				shape.rect.width = CARD_WIDTH - (shape.rect.x*2);
+			if (shape.rect.height < 0)
+				shape.rect.height = CARD_HEIGHT - (shape.rect.y*2);
+		}
+	}
+
 	static async RenderHTMLToCanvas(element, posX = 0, posY = 0) {
 		if (IsNullOrWhitespace(element.innerHTML))
 			return;
 
-		console.debug("Rendering", element, "to canvas");
+		//console.debug("Rendering", element, "to canvas");
 	
 		let options = {
 			logging: false,
@@ -251,16 +285,16 @@ class CardGen {
 		let center = shapeRect.relativeCenter();
 
 		// top of crown
-		path.moveTo(shapeRect.x, shapeRect.y);
+		path.moveTo(shapeRect.x,                         shapeRect.y);
 		path.lineTo(shapeRect.x + center[0] - tipOffset, shapeRect.y + tipDepth);
-		path.lineTo(shapeRect.x + center[0], shapeRect.y);
+		path.lineTo(shapeRect.x + center[0],             shapeRect.y);
 		path.lineTo(shapeRect.x + center[0] + tipOffset, shapeRect.y + tipDepth);
-		path.lineTo(shapeRect.x + shapeRect.width, shapeRect.y);
+		path.lineTo(shapeRect.x + shapeRect.width,       shapeRect.y);
 
 		// bottom
 		let offCant = Math.tan(cantBottom * (Math.PI/180)) * shapeRect.height;
 		path.lineTo(shapeRect.x + shapeRect.width - offCant, shapeRect.y + shapeRect.height);
-		path.lineTo(shapeRect.x + offCant, shapeRect.y + shapeRect.height);
+		path.lineTo(shapeRect.x + offCant,                   shapeRect.y + shapeRect.height);
 		path.closePath();
 		return path;
 	}
@@ -279,12 +313,12 @@ class CardGen {
 		// divided by two, because we only need half of the height to get a right triangle
 		let spikeWidth = height/2;
 
-		path.moveTo(x + spikeWidth, y);
+		path.moveTo(x + spikeWidth,         y);
 		path.lineTo(x + width - spikeWidth, y);
-		path.lineTo(x + width, y + spikeWidth);
+		path.lineTo(x + width,              y + spikeWidth);
 		path.lineTo(x + width - spikeWidth, y + height);
-		path.lineTo(x + spikeWidth, y + height);
-		path.lineTo(x, y + spikeWidth);
+		path.lineTo(x + spikeWidth,         y + height);
+		path.lineTo(x,                      y + spikeWidth);
 		path.closePath();
 		return path;
 	}
@@ -305,10 +339,10 @@ class CardGen {
 		let offLeft = Math.tan(cantLeft * (Math.PI/180)) * height;
 		let offRight = Math.tan(cantRight * (Math.PI/180)) * height;
 
-		path.moveTo(x + Math.max(0, offLeft), y);
+		path.moveTo(x + Math.max(0, offLeft),          y);
 		path.lineTo(x + width + Math.min(0, offRight), y);
 		path.lineTo(x + width - Math.max(0, offRight), y + height);
-		path.lineTo(x - Math.min(0, offLeft), y + height);
+		path.lineTo(x - Math.min(0, offLeft),          y + height);
 
 		path.closePath();
 		return path;
@@ -336,11 +370,31 @@ class CardGen {
 			this.ctx.stroke(path);
 	}
 
-	static async DrawIcon(icon) {
-		if (icon == null)
+	static async DrawIcon(img, center = false, centerBetweenBoxes = true, scale = true) {
+		if (typeof(img) == "string" || img instanceof String)
+			img = await this.LoadImage(img);
+		if (img == null)
 			return;
+
+		let rectImg = new DOMRect(0, 0, img.naturalWidth, img.naturalHeight);
 		
-		await this.DrawImage(icon, 0, 0);
+		if (center) {
+			let rectBG = CardSections.Background.rect;
+			let rectType = CardSections.ShapeType.rect;
+			let rectDesc = CardSections.ShapeDescriptionBox.rect;
+
+			let widthAvailable = centerBetweenBoxes ? rectBG.width - (CardSections.Background.borderWidth*2) : rectBG.width;
+			let heightAvailable = centerBetweenBoxes ? rectDesc.y - (rectType.y + rectType.height) : rectBG.height;
+			console.log(widthAvailable, heightAvailable);
+			rectImg = CreateLetterbox(rectImg, widthAvailable, heightAvailable, scale, scale).floor();
+			rectImg.x = (rectBG.width/2) - (rectImg.width/2);
+			rectImg.y = (rectType.y + rectType.height) + (heightAvailable/2) - (rectImg.height/2);
+		}
+		else {
+			rectImg.scale(CARD_SCALE);
+		}
+		
+		await this.DrawImage(img, rectImg.x, rectImg.y, rectImg.width, rectImg.height);
 	}
 
 	static DrawTypeShape() {
@@ -428,8 +482,8 @@ class CardGen {
 		this.ctx.stroke(path);
 
 		// draw images
-		let HP = await this.LoadImage("../Icons/HP.png");
-		let DMG = await this.LoadImage("../Icons/DMG.png");
+		let HP = await this.LoadImage("Icons/HP.png");
+		let DMG = await this.LoadImage("Icons/DMG.png");
 
 		let boxInternalHeight = boxRect.height - (box.borderWidth*2);
 		let padding = 2 * CARD_SCALE;
@@ -487,7 +541,7 @@ class CardGen {
 		// comment
 		let rectCardComment = renderCardComment.getBoundingClientRect();
 		let rectDescriptionBox = CardSections.ShapeDescriptionBox.rect;
-		RenderTextCenteredAtBox(renderCardComment, CardSections.ShapeDescriptionBox, 0 * CARD_SCALE, rectDescriptionBox.height - rectCardComment.height - CardSections.ShapeDescriptionBox.borderWidth, true, false);
+		RenderTextCenteredAtBox(renderCardComment, CardSections.ShapeDescriptionBox, 0 * CARD_SCALE, rectDescriptionBox.height - rectCardComment.height - CardSections.ShapeDescriptionBox.borderWidth - (2 * CARD_SCALE), true, false);
 	}
 
 	static async DrawCard() {
@@ -497,34 +551,12 @@ class CardGen {
 		let watermark = await this.LoadImage("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAcAAAAHBAMAAAA2fErgAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAGUExURQBHq////9VghYAAAAAJcEhZcwAADsMAAA7DAcdvqGQAAAAiSURBVBjTFclBEQAwEIQw1gH4N9vrMxMWYkFTss95cXTxABb/AU81y+VHAAAAAElFTkSuQmCC");
 		await this.DrawImage(watermark, 0, 0);
 
-		await this.ApplyToTemporaryRender();
-
-		await this.DrawBackground("../Characters/Mizuki Date.png");
-		await this.DrawIcon();
+		await this.DrawBackground(this.cardOptions.imgBackground);
+		await this.DrawIcon(this.cardOptions.imgIcon);
 		await this.DrawTypeShape();
 		await this.DrawDescriptionBox();
 		await this.DrawStats();
 		await this.DrawText();
-	}
-
-	static async ApplyToTemporaryRender() {
-		let desc = this.cardInfo.desc;
-		if (optionAutoHighlightDesc.checked)
-			desc = this.HighlightReplacer(desc);
-		desc = desc.replaceAll("\n", "<br>");
-		
-		// intentional innerHTML!
-		renderCardTypeVariant.innerHTML = this.cardInfo.variant.replaceAll("\n", "<br>");
-		renderCardName.innerHTML = this.cardInfo.name.replaceAll("\n", "<br>");
-		renderCardHP.innerHTML = this.cardInfo.hp;
-		renderCardDMG.innerHTML = this.cardInfo.dmg;
-		renderCardDesc.innerHTML = desc;
-		renderCardComment.innerHTML = this.cardInfo.comment.replaceAll("\n", "<br>");
-
-		renderCardStatuses.innerHTML = "";
-		for (let x of this.cardInfo.statuses) {
-			renderCardStatuses.appendChild(await this.LoadImage(`../Icons/Statuses/${x}.png`));
-		}
 	}
 }
 

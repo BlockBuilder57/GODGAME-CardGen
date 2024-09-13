@@ -25,15 +25,19 @@
 				</div>
 				<textarea id="infoCardDesc" placeholder="Card Description" class="cardText cardDesc" rows="9"></textarea>
 				<textarea id="infoCardComment" placeholder="Card Comment" class="cardText cardComment" rows="2"></textarea>
-				<div>
-					<input type="checkbox" checked id="optionAutoHighlightDesc">
-					<label for="optionAutoHighlightDesc">Auto highlight card description?</label><br>
-				</div>
-				<div>
-					<input type="checkbox" checked id="optionIsCharacter">
-					<label for="optionIsCharacter">Is character card? (Has stats)</label><br>
-				</div>
 				<button id="btnMakeCard">Make Card</button>
+				<div id="options">
+					<input type="text" id="optionImgBackground">
+					<input type="text" id="optionImgIcon">
+					<div>
+						<input type="checkbox" checked id="optionAutoHighlightDesc">
+						<label for="optionAutoHighlightDesc">Auto highlight card description?</label><br>
+					</div>
+					<div>
+						<input type="checkbox" checked id="optionIsCharacter">
+						<label for="optionIsCharacter">Is character card? (Has stats)</label><br>
+					</div>
+				</div>
 			</div>
 			<div id="renderCard" class="cardSized">
 				<p id="renderCardName" class="cardText textOutline cardName"></p>
