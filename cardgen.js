@@ -1,6 +1,6 @@
-const CARD_SCALE = 1.0;
-const CARD_WIDTH = 506 * CARD_SCALE;
-const CARD_HEIGHT = 702 * CARD_SCALE;
+let CARD_SCALE = 1.0;
+let CARD_WIDTH = 506 * CARD_SCALE;
+let CARD_HEIGHT = 702 * CARD_SCALE;
 
 let CardTypes = {
 	"Basic": {
@@ -52,7 +52,7 @@ let CardSections = {
 	},
 	"ShapeTypeVariant": {
 		// corrected later to be below ShapeType
-		rect: new DOMRect(180, -1, -1, 40).scale(CARD_SCALE),
+		rect: new DOMRect(160, -1, -1, 40).scale(CARD_SCALE),
 		borderWidth: 4 * CARD_SCALE,
 	},
 	"ShapeDescriptionBox": {
@@ -116,6 +116,7 @@ class CardGen {
 			statuses: infoCardStatuses.value.split(/,| /).filter(x => !IsNullOrWhitespace(x)),
 			desc: infoCardDesc.value,
 			comment: infoCardComment.value,
+			isCharacter: optionIsCharacter.checked,
 		};
 	}
 
@@ -144,7 +145,7 @@ class CardGen {
 		if (IsNullOrWhitespace(element.innerHTML))
 			return;
 
-		console.log(element);
+		console.debug("Rendering", element, "to canvas");
 	
 		let options = {
 			logging: false,
@@ -163,6 +164,9 @@ class CardGen {
 	}
 
 	static async LoadImage(src) {
+		if ((typeof(src) == "string" || src instanceof String) && IsNullOrWhitespace(src))
+			return null;
+
 		let img = new Image();
 		img.src = src;
 
@@ -182,7 +186,10 @@ class CardGen {
 		if (img == null)
 			return;
 		
-		this.ctx.drawImage(img, x, y, width < 0 ? img.naturalWidth * CARD_SCALE : width, height < 0 ? img.naturalHeight * CARD_SCALE : height);
+		width = width < 0 ? img.naturalWidth * CARD_SCALE : width;
+		height = height < 0 ? img.naturalHeight * CARD_SCALE : height;
+		//console.debug("Drawing", img, "with size", width, height);
+		this.ctx.drawImage(img, x, y, width, height);
 	}
 
 	static DrawPath(path, fill = true, stroke = true) {
@@ -377,13 +384,13 @@ class CardGen {
 			case "Explore": {
 				// spiked box (ala Xenoblade 2)
 				this.CreateSpikedBoxPath(-1, shapeRect.x, shapeRect.y, shapeRect.width, shapeRect.height, path);
-				
-				if (!IsNullOrWhitespace(this.cardInfo.variant)) {
-					shapeRect = CardSections.ShapeTypeVariant.rect;
-					this.CreateRoundedRectPath(-1, shapeRect.x, shapeRect.y, shapeRect.width, shapeRect.height, 8 * CARD_SCALE, path);
-				}
 				break;
 			}
+		}
+
+		if (!IsNullOrWhitespace(this.cardInfo.variant)) {
+			shapeRect = CardSections.ShapeTypeVariant.rect;
+			this.CreateRoundedRectPath(-1, shapeRect.x, shapeRect.y, shapeRect.width, shapeRect.height, 8 * CARD_SCALE, path);
 		}
 
 		this.ctx.fill(path);
@@ -405,6 +412,9 @@ class CardGen {
 	}
 
 	static async DrawStats() {
+		if (!this.cardInfo.isCharacter)
+			return;
+
 		let box = CardSections.ShapeStatsBox;
 		let boxRect = box.rect;
 		this.ctx.strokeStyle = this.cardInfo.typeObj.colorShapeBorder;
@@ -424,16 +434,14 @@ class CardGen {
 		let boxInternalHeight = boxRect.height - (box.borderWidth*2);
 		let padding = 2 * CARD_SCALE;
 
-		let rectHP = new DOMRect(0, 0, HP.naturalWidth, HP.naturalHeight).scale(boxInternalHeight/HP.naturalHeight);
+		let rectHP = new DOMRect(0, 0, HP.naturalWidth, HP.naturalHeight);
+		rectHP = CreateLetterbox(rectHP, boxInternalHeight - (padding*2), boxInternalHeight - (padding*2)).floor();
 		rectHP.x += padding;
 		rectHP.y += padding;
-		rectHP.width -= (padding*2);
-		rectHP.height -= (padding*2);
-		let rectDMG = new DOMRect(0, 0, DMG.naturalWidth, DMG.naturalHeight).scale(boxInternalHeight/DMG.naturalHeight);
+		let rectDMG = new DOMRect(0, 0, DMG.naturalWidth, DMG.naturalHeight);
+		rectDMG = CreateLetterbox(rectDMG, boxInternalHeight - (padding*2), boxInternalHeight - (padding*2)).floor();
 		rectDMG.x += padding;
 		rectDMG.y += padding;
-		rectDMG.width -= (padding*2);
-		rectDMG.height -= (padding*2);
 
 		this.DrawImage(HP, boxRect.x + box.borderWidth + rectHP.x, boxRect.y + box.borderWidth + rectHP.y, rectHP.width, rectHP.height);
 		this.DrawImage(DMG, boxRect.x + boxRect.width - box.borderWidth - rectDMG.x - rectDMG.width, boxRect.y + box.borderWidth + rectDMG.y, rectDMG.width, rectDMG.height);
@@ -460,16 +468,18 @@ class CardGen {
 
 		// title
 		RenderTextCenteredAtBox(renderCardName, CardSections.ShapeType, 0 * CARD_SCALE, 0 * CARD_SCALE);
-		if (this.cardInfo.type == "Explore")
+		if (!IsNullOrWhitespace(this.cardInfo.variant))
 			RenderTextCenteredAtBox(renderCardTypeVariant, CardSections.ShapeTypeVariant, 0 * CARD_SCALE, -1 * CARD_SCALE);
 
 		// stats
-		let rectStatsBox = CardSections.ShapeStatsBox.rect;
-		let rectCardHP = renderCardHP.getBoundingClientRect();
-		let rectCardDMG = renderCardDMG.getBoundingClientRect();
-		let padding = 2 * CARD_SCALE
-		RenderTextCenteredAtBox(renderCardHP, CardSections.ShapeStatsBox, rectStatsBox.height/2 - rectCardHP.width/2 + padding, 0 * CARD_SCALE, false, true);
-		RenderTextCenteredAtBox(renderCardDMG, CardSections.ShapeStatsBox, rectStatsBox.width - rectStatsBox.height/2 - rectCardDMG.width/2 - padding, 0 * CARD_SCALE, false, true);
+		if (this.cardInfo.isCharacter) {
+			let rectStatsBox = CardSections.ShapeStatsBox.rect;
+			let rectCardHP = renderCardHP.getBoundingClientRect();
+			let rectCardDMG = renderCardDMG.getBoundingClientRect();
+			let padding = 0 * CARD_SCALE;
+			RenderTextCenteredAtBox(renderCardHP, CardSections.ShapeStatsBox, rectStatsBox.height/2 - (rectCardHP.width/2) + padding, 0 * CARD_SCALE, false, true);
+			RenderTextCenteredAtBox(renderCardDMG, CardSections.ShapeStatsBox, rectStatsBox.width - rectStatsBox.height/2 - (rectCardDMG.width/2) - padding, 0 * CARD_SCALE, false, true);
+		}
 
 		// desc
 		RenderTextCenteredAtBox(renderCardDesc, CardSections.ShapeDescriptionBox, 0 * CARD_SCALE, 7 * CARD_SCALE, true, false);

@@ -38,18 +38,53 @@ function ClearTextFormattingOnPaste(e) {
 	document.execCommand("insertHTML", false, text);
 }
 
+function CreateLetterbox(rect, box_width, box_height) {
+	let ret = new DOMRect(0, 0, box_width, box_height);
+
+	// get scaling factors for dimensions
+	let aspect_box = box_width / box_height;
+	let aspect_rect = rect.width / rect.height;
+
+	let scalar = aspect_box / aspect_rect;
+
+	if (rect.width > rect.height) {
+		// for when the width is bigger than the height (ie 16:9)
+		ret.height = box_height * scalar;
+		ret.y = ((box_height - ret.height) / 2);
+	}
+	else {
+		// for when the height is bigger than the width (ie 9:16)
+		// i still don't know why the math checks out here, but it does
+		ret.width = box_height * (aspect_box / scalar);
+		ret.x = ((box_width - ret.width) / 2);
+	}
+
+	return ret;
+}
+
 // Extensions
+
+Math.Clamp = function(num, min, max) {
+	return Math.min(Math.max(num, min), max);
+};
 
 DOMRectReadOnly.prototype.relativeCenter = function(floor = false) {
 	if (floor)
 		return [Math.floor(this.width/2.0), Math.floor(this.height/2.0)];
 	return [this.width/2.0, this.height/2.0];
 }
-DOMRectReadOnly.prototype.scale = function(scale = 1.0) {
+DOMRect.prototype.scale = function(scale = 1.0) {
 	this.x *= scale;
 	this.y *= scale;
 	this.width *= scale;
 	this.height *= scale;
+	return this;
+}
+DOMRect.prototype.floor = function() {
+	this.x = Math.floor(this.x);
+	this.y = Math.floor(this.y);
+	this.width = Math.floor(this.width);
+	this.height = Math.floor(this.height);
 	return this;
 }
 
